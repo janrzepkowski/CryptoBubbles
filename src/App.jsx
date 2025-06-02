@@ -17,142 +17,286 @@ function App() {
     },
   };
 
-  const millionsFormat = d3.format("$,.0f");
-  const percentFormat = d3.format(".2f");
-
   const createBubbleChart = (data) => {
     d3.select(svgRef.current).selectAll("*").remove();
 
-    const width = window.innerWidth - 100;
-    const height = window.innerHeight - 200;
+    const width = window.innerWidth;
+    const height = 500;
 
     const svg = d3
       .select(svgRef.current)
       .attr("width", width)
-      .attr("height", height);
+      .attr("height", height)
+      .attr("viewBox", `0 0 ${width} ${height}`)
+      .attr("preserveAspectRatio", "xMidYMid meet")
+      .style("border-radius", "5px");
 
-    const maxMarketCap = Math.max(...data.map((d) => d.market_cap));
-    const minMarketCap = Math.min(...data.map((d) => d.market_cap));
-
-    const processedData = data.map((coin) => {
-      const normalizedSize =
-        (coin.market_cap - minMarketCap) / (maxMarketCap - minMarketCap);
-      const r = 20 + normalizedSize * 80;
-      return {
-        id: coin.id,
-        symbol: coin.symbol.toUpperCase(),
-        name: coin.name,
-        market_cap: coin.market_cap,
-        market_cap_rank: coin.market_cap_rank,
-        price: coin.current_price,
-        change_24h: coin.price_change_percentage_24h,
-        image: coin.image,
-        x: r + Math.random() * (width - 2 * r),
-        y: r + Math.random() * (height - 2 * r),
-        r: r,
-      };
+    // Process data and add change categories
+    data.map((el) => {
+      if (Math.abs(el.price_change_percentage_24h) > 100) {
+        el.price_change_percentage_24h = 0;
+      }
     });
 
-    const simulation = d3
-      .forceSimulation(processedData)
-      .force("charge", d3.forceManyBody().strength(-200))
-      .force("center", d3.forceCenter(width / 2, height / 2))
-      .force(
-        "collision",
-        d3
-          .forceCollide()
-          .radius((d) => d.r + 10)
-          .iterations(3)
-      )
-      .force("x", d3.forceX(width / 2).strength(0.02))
-      .force("y", d3.forceY(height / 2).strength(0.02))
-      .stop();
+    data.map((el) => {
+      if (Math.abs(el.price_change_percentage_24h) > 100) {
+        el["change"] = "crazy";
+      } else if (
+        el.price_change_percentage_24h > 0 &&
+        el.price_change_percentage_24h < 100
+      ) {
+        el["change"] = "up";
+      } else if (el.price_change_percentage_24h < 0) {
+        el["change"] = "down";
+      } else if (
+        el.price_change_percentage_24h === 0 ||
+        el.price_change_percentage_24h === null
+      ) {
+        el["change"] = "zero";
+        if (el.price_change_percentage_24h === null) {
+          el.price_change_percentage_24h = 0;
+        }
+      }
+    });
 
-    for (let i = 0; i < 800; ++i) simulation.tick();
+    // Format market cap and volume
+    data.map((el) => {
+      if (el.market_cap > 1000000000) {
+        el["toolMC"] = `$${(el.market_cap / 1000000000).toFixed(2)}B`;
+      } else {
+        el["toolMC"] = `$${(el.market_cap / 1000000).toFixed(2)}M`;
+      }
+    });
 
+    data.map((el) => {
+      if (el.total_volume > 1000000000) {
+        el["toolTV"] = `$${(el.total_volume / 1000000000).toFixed(2)}B`;
+      } else {
+        el["toolTV"] = `$${(el.total_volume / 1000000).toFixed(2)}M`;
+      }
+    });
+
+    data.map((el) => {
+      if (el.price_change_percentage_24h > 1) {
+        el["toolPC"] = `+${el.price_change_percentage_24h.toFixed(2)}%`;
+      } else {
+        el["toolPC"] = `${el.price_change_percentage_24h.toFixed(2)}%`;
+      }
+    });
+
+    const formatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    });
+
+    // Find max change for scaling
+    function max() {
+      let maxChange = 0;
+      data.forEach((coin) => {
+        if (Math.abs(coin.price_change_percentage_24h) > maxChange) {
+          maxChange = Math.abs(coin.price_change_percentage_24h);
+        }
+      });
+      return maxChange;
+    }
+
+    // Color scale - gradient based on percentage change
+    const colorScale = d3
+      .scaleLinear()
+      .domain([-max(), 0, max()])
+      .range(["#ff0000", "#808080", "#00ff00"])
+      .clamp(true);
+
+    // Size scale
+    const size = d3
+      .scaleLinear()
+      .domain([0, (max() * 8) / 10, max()])
+      .range([15, 40, 60]);
+
+    // Y position for up/down coins
+    const y = d3
+      .scaleOrdinal()
+      .domain(["up", "down", "zero"])
+      .range([150, 350, 250]);
+
+    // Tooltip
     const tooltip = d3
       .select("body")
       .append("div")
-      .attr("class", "d3-tooltip")
       .style("opacity", 0)
-      .style("position", "absolute")
-      .style("background", "rgba(0, 0, 0, 0.8)")
+      .attr("class", "tooltip")
+      .style("background-color", "rgba(0, 0, 0, 0.9)")
       .style("color", "white")
       .style("padding", "10px")
       .style("border-radius", "5px")
-      .style("pointer-events", "none")
-      .style("font-size", "12px");
+      .style("position", "absolute")
+      .style("border", "solid 2px")
+      .style("pointer-events", "none");
 
-    const showTooltip = (event, d) => {
-      tooltip.transition().duration(200).style("opacity", 1);
+    const mouseover = function (event, d) {
+      tooltip.style("opacity", 1);
+    };
+
+    const mousemove = function (event, d) {
       tooltip
         .html(
-          `
-        <strong>${d.name} (${d.symbol})</strong><br/>
-        Market Cap: ${millionsFormat(d.market_cap)}<br/>
-        Price: $${d.price.toLocaleString()}<br/>
-        24h Change: ${percentFormat(d.change_24h)}%<br/>
-        Rank: #${d.market_cap_rank}
-      `
+          `Name: ${d.name} | Current Price: ${formatter.format(
+            d.current_price
+          )}<br/>` +
+            `Symbol: ${d.symbol.toUpperCase()} | 24Hr Change: ${
+              d.toolPC
+            } | High 24Hr: ${formatter.format(
+              d["high_24h"]
+            )} | Low 24Hr: ${formatter.format(d["low_24h"])}<br/>` +
+            `Rank: ${d.market_cap_rank} | Market Cap: ${d.toolMC} | 24H Volume: ${d.toolTV}`
         )
-        .style("left", event.pageX + 10 + "px")
-        .style("top", event.pageY - 10 + "px");
+        .style("left", event.pageX + 20 + "px")
+        .style("top", event.pageY - 30 + "px")
+        .style("border-color", colorScale(d.price_change_percentage_24h));
     };
 
-    const hideTooltip = () => {
-      tooltip.transition().duration(200).style("opacity", 0);
+    const mouseleave = function (event, d) {
+      tooltip.style("opacity", 0);
     };
 
-    const nodes = svg
-      .selectAll(".node")
-      .data(processedData)
-      .enter()
+    // Create groups for bubbles
+    const node = svg
       .append("g")
-      .attr("class", "node")
-      .attr(
-        "transform",
-        (d) =>
-          `translate(${Math.max(d.r, Math.min(width - d.r, d.x))},${Math.max(
-            d.r,
-            Math.min(height - d.r, d.y)
-          )})`
-      )
-      .on("mouseover", showTooltip)
-      .on("mouseout", hideTooltip);
+      .selectAll("g.bubble")
+      .data(data)
+      .join("g")
+      .attr("class", "bubble")
+      .on("mouseover", mouseover)
+      .on("mousemove", mousemove)
+      .on("mouseleave", mouseleave)
+      .call(
+        d3
+          .drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended)
+      );
 
-    nodes
+    // Add circles as backgrounds
+    node
       .append("circle")
-      .attr("r", (d) => d.r)
-      .attr("fill", (d) => {
-        if (d.change_24h > 0) return "#22c55e";
-        if (d.change_24h < 0) return "#ef4444";
-        return "#6b7280";
-      });
+      .attr("r", (d) => size(Math.abs(d.price_change_percentage_24h)))
+      .style("fill", (d) => colorScale(d.price_change_percentage_24h))
+      .style("fill-opacity", 0.8)
+      .attr("stroke", (d) => colorScale(d.price_change_percentage_24h))
+      .style("stroke-width", 2);
 
-    nodes
+    // Add logos
+    node
       .append("image")
-      .attr("x", (d) => -d.r * 0.3)
-      .attr("y", (d) => -d.r * 0.5)
-      .attr("width", (d) => d.r * 0.6)
-      .attr("height", (d) => d.r * 0.6)
-      .attr("href", (d) => d.image);
+      .attr("xlink:href", (d) => d.image)
+      .attr("x", (d) => -size(Math.abs(d.price_change_percentage_24h)) * 0.3)
+      .attr("y", (d) => -size(Math.abs(d.price_change_percentage_24h)) * 0.5)
+      .attr("width", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.6)
+      .attr(
+        "height",
+        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.6
+      )
+      .style("pointer-events", "none");
 
-    nodes
+    // Add symbol text
+    node
       .append("text")
-      .attr("dy", "0.1em")
+      .attr("class", "symbol-text")
+      .text((d) => d.symbol.toUpperCase())
       .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("y", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.15)
+      .attr(
+        "font-size",
+        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.25
+      )
       .attr("fill", "white")
       .attr("font-weight", "bold")
-      .attr("font-size", (d) => Math.max(8, Math.min(d.r * 0.25, 18)))
-      .text((d) => d.symbol);
+      .style("pointer-events", "none");
 
-    nodes
+    // Add percentage change text
+    node
       .append("text")
-      .attr("dy", "1.2em")
+      .attr("class", "percentage-text")
+      .text((d) => {
+        if (d.price_change_percentage_24h < 0) {
+          return `${d.price_change_percentage_24h.toFixed(1)}%`;
+        } else if (d.price_change_percentage_24h > 0) {
+          return `+${d.price_change_percentage_24h.toFixed(1)}%`;
+        } else {
+          return "0%";
+        }
+      })
       .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .attr("y", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.45)
+      .attr(
+        "font-size",
+        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.2
+      )
       .attr("fill", "white")
-      .attr("font-size", (d) => Math.max(6, Math.min(d.r * 0.15, 12)))
-      .text((d) => `${d.change_24h?.toFixed(1)}%`);
+      .attr("font-weight", "normal")
+      .style("pointer-events", "none");
+
+    // Simulation forces
+    const simulation = d3
+      .forceSimulation()
+      .force(
+        "x",
+        d3
+          .forceX()
+          .strength(0.1)
+          .x(width / 2)
+      )
+      .force(
+        "y",
+        d3
+          .forceY()
+          .strength(0.8)
+          .y((d) => y(d.change))
+      )
+      .force(
+        "center",
+        d3
+          .forceCenter()
+          .x(width / 2)
+          .y(height / 2)
+      )
+      .force("charge", d3.forceManyBody().strength(0.1))
+      .force(
+        "collide",
+        d3
+          .forceCollide()
+          .strength(0.2)
+          .radius((d) => size(Math.abs(d.price_change_percentage_24h)) + 3)
+          .iterations(5)
+      );
+
+    // Tick function
+    let ticked = () => {
+      node.attr("transform", (d) => `translate(${d.x},${d.y})`);
+    };
+
+    simulation.nodes(data).on("tick", ticked);
+
+    // Drag functions
+    function dragstarted(event, d) {
+      if (!event.active) simulation.alphaTarget(0.03).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragended(event, d) {
+      if (!event.active) simulation.alphaTarget(0.03);
+      d.fx = null;
+      d.fy = null;
+    }
   };
 
   useEffect(() => {
@@ -167,7 +311,7 @@ function App() {
       });
 
     return () => {
-      d3.select("body").selectAll(".d3-tooltip").remove();
+      d3.select("body").selectAll(".tooltip").remove();
     };
   }, []);
 
@@ -183,12 +327,10 @@ function App() {
   }, [coins]);
 
   return (
-    <>
+    <div id="graph">
       <h1>Crypto Bubbles</h1>
-      <div className="bubble-container">
-        <svg ref={svgRef}></svg>
-      </div>
-    </>
+      <svg ref={svgRef}></svg>
+    </div>
   );
 }
 

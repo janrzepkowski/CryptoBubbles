@@ -1,45 +1,78 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
-
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
-
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+html {
+  margin: 0;
 }
 
 body {
   margin: 0;
-  display: flex;
-  justify-content: flex-start;
-  align-items: flex-start;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
+  font-family: system-ui, Arial, sans-serif;
+  background: #000;
+  color: white;
 }
 
 h1 {
-  margin: 0;
-  font-size: 3em;
-  line-height: 1.1;
+  margin-bottom: 2px;
+  width: 100%;
+  font-size: 40px;
+  text-align: center;
+  color: white;
 }
 
-#root {
-  margin: 0;
-  padding: 2rem;
-  text-align: left;
+h3 {
+  margin-top: 2px;
+  margin-bottom: 5px;
   width: 100%;
+  font-size: 20px;
+  text-align: center;
+}
+
+.warning {
+  font-size: 15px;
+  left: 350px;
+  text-align: center;
+  margin-bottom: 3px;
+}
+
+text.title {
+  font-size: 40px;
+  text-align: center;
+}
+
+.tooltip {
+  font-size: 14px;
+  line-height: 1.5;
+  z-index: 9999;
+}
+
+#graph {
+  height: 500px;
+  width: 100%;
+}
+
+.bubble {
+  cursor: grab;
+}
+
+.bubble:active {
+  cursor: grabbing;
+}
+
+.node {
+  transition: stroke-width 0.2s ease;
+}
+
+.coin-logo {
+  opacity: 0.9;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
+}
+
+.symbol-label {
+  user-select: none;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.percent-label {
+  user-select: none;
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
 }
