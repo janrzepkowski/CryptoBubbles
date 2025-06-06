@@ -138,20 +138,54 @@ function App() {
     };
 
     const mousemove = function (event, d) {
+      const tooltipWidth = 300;
+      const tooltipHeight = 200;
+      const margin = 20;
+
+      // pozycja tooltipa
+      let tooltipX = event.pageX + 20;
+      let tooltipY = event.pageY - 30;
+
+      // czy wychodzi poza prawą krawędź
+      if (tooltipX + tooltipWidth > window.innerWidth) {
+        tooltipX = event.pageX - tooltipWidth - 20;
+      }
+
+      // czy wychodzi poza dolną krawędź
+      if (tooltipY + tooltipHeight > window.innerHeight) {
+        tooltipY = event.pageY - tooltipHeight - 20;
+      }
+
+      // czy wychodzi poza górną krawędź
+      if (tooltipY < margin) {
+        tooltipY = margin;
+      }
+
+      // czy wychodzi poza lewą krawędź
+      if (tooltipX < margin) {
+        tooltipX = margin;
+      }
+
       tooltip
         .html(
-          `Name: ${d.name} | Current Price: ${formatter.format(
-            d.current_price
-          )}<br/>` +
-            `Symbol: ${d.symbol.toUpperCase()} | 24Hr Change: ${
-              d.toolPC
-            } | High 24Hr: ${formatter.format(
+          `Name: <strong>${d.name}</strong><br/>` +
+            `Symbol: <strong>${d.symbol.toUpperCase()}</strong><br/>` +
+            `Current Price: <strong>${formatter.format(
+              d.current_price
+            )}</strong><br/>` +
+            `24Hr Change: <strong>${d.toolPC}</strong><br/>` +
+            `High 24Hr: <strong>${formatter.format(
               d["high_24h"]
-            )} | Low 24Hr: ${formatter.format(d["low_24h"])}<br/>` +
-            `Rank: ${d.market_cap_rank} | Market Cap: ${d.toolMC} | 24H Volume: ${d.toolTV}`
+            )}</strong><br/>` +
+            `Low 24Hr: <strong>${formatter.format(
+              d["low_24h"]
+            )}</strong><br/>` +
+            `Rank: <strong>${d.market_cap_rank}</strong><br/>` +
+            `Market Cap: <strong>${d.toolMC}</strong><br/>` +
+            `24H Volume: <strong>${d.toolTV}</strong>`
         )
-        .style("left", event.pageX + 20 + "px")
-        .style("top", event.pageY - 30 + "px")
+        .style("left", tooltipX + "px")
+        .style("top", tooltipY + "px")
         .style("border-color", colorScale(d.price_change_percentage_24h));
     };
 
