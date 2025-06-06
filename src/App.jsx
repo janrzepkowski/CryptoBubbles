@@ -20,7 +20,7 @@ function App() {
   const createBubbleChart = (data) => {
     d3.select(svgRef.current).selectAll("*").remove();
 
-    const width = window.innerWidth;
+    const width = window.innerWidth - 500;
     const height = window.innerHeight;
 
     const svg = d3
@@ -138,18 +138,12 @@ function App() {
     };
 
     const mousemove = function (event, d) {
-      const tooltipWidth = 300;
       const tooltipHeight = 200;
       const margin = 20;
 
       // pozycja tooltipa
       let tooltipX = event.pageX + 20;
       let tooltipY = event.pageY - 30;
-
-      // czy wychodzi poza prawą krawędź
-      if (tooltipX + tooltipWidth > window.innerWidth) {
-        tooltipX = event.pageX - tooltipWidth - 20;
-      }
 
       // czy wychodzi poza dolną krawędź
       if (tooltipY + tooltipHeight > window.innerHeight) {
@@ -159,11 +153,6 @@ function App() {
       // czy wychodzi poza górną krawędź
       if (tooltipY < margin) {
         tooltipY = margin;
-      }
-
-      // czy wychodzi poza lewą krawędź
-      if (tooltipX < margin) {
-        tooltipX = margin;
       }
 
       tooltip
@@ -361,9 +350,72 @@ function App() {
   }, [coins]);
 
   return (
-    <div id="graph">
-      <h1>Crypto Bubbles</h1>
-      <svg ref={svgRef}></svg>
+    <div className="app-container">
+      <div className="legend">
+        <h3>Legend</h3>
+
+        <div className="legend-section">
+          <h4>Colors</h4>
+          <div className="legend-item">
+            <div
+              className="color-circle"
+              style={{ backgroundColor: "#00ff00" }}
+            ></div>
+            <span>Price Up (24h)</span>
+          </div>
+          <div className="legend-item">
+            <div
+              className="color-circle"
+              style={{ backgroundColor: "#808080" }}
+            ></div>
+            <span>No Change (0%)</span>
+          </div>
+          <div className="legend-item">
+            <div
+              className="color-circle"
+              style={{ backgroundColor: "#ff0000" }}
+            ></div>
+            <span>Price Down (24h)</span>
+          </div>
+        </div>
+
+        <div className="legend-section">
+          <h4>Interactions</h4>
+          <div className="legend-text">
+            <p>
+              <strong>Hover:</strong> View detailed info
+            </p>
+            <p>
+              <strong>Drag:</strong> Move bubbles around
+            </p>
+            <p>
+              <strong>Position:</strong> Auto-grouped by performance
+            </p>
+          </div>
+        </div>
+
+        <div className="legend-section">
+          <h4>Layout</h4>
+          <div className="legend-text">
+            <p>
+              <strong>Top:</strong> Gainers (green)
+            </p>
+            <p>
+              <strong>Middle:</strong> Neutral (gray)
+            </p>
+            <p>
+              <strong>Bottom:</strong> Losers (red)
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div id="graph">
+        <h1>Crypto Bubbles</h1>
+        <svg ref={svgRef}></svg>
+      </div>
+
+      <div className="right-panel">{/* Empty panel for balanced layout */}</div>
     </div>
   );
 }

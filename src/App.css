@@ -25,6 +25,80 @@ body {
   height: 100%;
 }
 
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+}
+
+.legend {
+  width: 240px;
+  background: #1a1a1c;
+  padding: 20px;
+  border-right: 1px solid #333;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.right-panel {
+  width: 240px;
+  background: #1a1a1c;
+  border-left: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.legend h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 50px;
+  text-align: center;
+  color: #fff;
+}
+
+.legend-section {
+  margin-bottom: 25px;
+}
+
+.legend-section h4 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: #e0e0e0;
+  border-bottom: 1px solid #333;
+  padding-bottom: 5px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 13px;
+  color: #ccc;
+}
+
+.color-circle {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.legend-text {
+  font-size: 13px;
+  line-height: 1.4;
+  color: #ccc;
+}
+
+.legend-text p {
+  margin-bottom: 6px;
+}
+
+.legend-text strong {
+  color: #fff;
+}
+
 h1 {
   margin: 0;
   padding: 10px 0 2px 0;
