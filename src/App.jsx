@@ -5,6 +5,8 @@ import "./App.css";
 
 function App() {
   const [coins, setCoins] = useState([]);
+  const [activeTimeframe, setActiveTimeframe] = useState("24h");
+  const [loading, setLoading] = useState(false);
   const svgRef = useRef();
 
   const api_key = import.meta.env.VITE_API_COINGECKO_KEY;
@@ -17,8 +19,47 @@ function App() {
     },
   };
 
-  const createBubbleChart = (data) => {
+  const timeframes = {
+    "1h": {
+      label: "1 Hour",
+      key: "price_change_percentage_1h_in_currency",
+      display: "1h",
+    },
+    "24h": {
+      label: "24 Hours",
+      key: "price_change_percentage_24h_in_currency",
+      display: "24h",
+    },
+    "7d": {
+      label: "7 Days",
+      key: "price_change_percentage_7d_in_currency",
+      display: "7d",
+    },
+    "14d": {
+      label: "14 Days",
+      key: "price_change_percentage_14d_in_currency",
+      display: "14d",
+    },
+    "30d": {
+      label: "30 Days",
+      key: "price_change_percentage_30d_in_currency",
+      display: "30d",
+    },
+    "200d": {
+      label: "200 Days",
+      key: "price_change_percentage_200d_in_currency",
+      display: "200d",
+    },
+    "1y": {
+      label: "1 Year",
+      key: "price_change_percentage_1y_in_currency",
+      display: "1y",
+    },
+  };
+
+  const createBubbleChart = (data, timeframe) => {
     d3.select(svgRef.current).selectAll("*").remove();
+    d3.select("body").selectAll(".tooltip").remove();
 
     const width = window.innerWidth - 500;
     const height = window.innerHeight;
@@ -31,36 +72,29 @@ function App() {
       .attr("preserveAspectRatio", "xMidYMid meet")
       .style("border-radius", "5px");
 
-    // Process data and add change categories
-    data.map((el) => {
-      if (Math.abs(el.price_change_percentage_24h) > 100) {
-        el.price_change_percentage_24h = 0;
-      }
-    });
+    const changeKey = timeframes[timeframe].key;
 
-    data.map((el) => {
-      if (Math.abs(el.price_change_percentage_24h) > 100) {
+    data.forEach((el) => {
+      let changeValue = el[changeKey];
+
+      if (changeValue === null || changeValue === undefined) {
+        changeValue = 0;
+      }
+
+      el.currentChange = changeValue;
+
+      if (Math.abs(changeValue) > 100) {
         el["change"] = "crazy";
-      } else if (
-        el.price_change_percentage_24h > 0 &&
-        el.price_change_percentage_24h < 100
-      ) {
+      } else if (changeValue > 0) {
         el["change"] = "up";
-      } else if (el.price_change_percentage_24h < 0) {
+      } else if (changeValue < 0) {
         el["change"] = "down";
-      } else if (
-        el.price_change_percentage_24h === 0 ||
-        el.price_change_percentage_24h === null
-      ) {
+      } else {
         el["change"] = "zero";
-        if (el.price_change_percentage_24h === null) {
-          el.price_change_percentage_24h = 0;
-        }
       }
     });
 
-    // Format market cap and volume
-    data.map((el) => {
+    data.forEach((el) => {
       if (el.market_cap > 1000000000) {
         el["toolMC"] = `$${(el.market_cap / 1000000000).toFixed(2)}B`;
       } else {
@@ -68,7 +102,7 @@ function App() {
       }
     });
 
-    data.map((el) => {
+    data.forEach((el) => {
       if (el.total_volume > 1000000000) {
         el["toolTV"] = `$${(el.total_volume / 1000000000).toFixed(2)}B`;
       } else {
@@ -76,11 +110,11 @@ function App() {
       }
     });
 
-    data.map((el) => {
-      if (el.price_change_percentage_24h > 1) {
-        el["toolPC"] = `+${el.price_change_percentage_24h.toFixed(2)}%`;
+    data.forEach((el) => {
+      if (el.currentChange > 0) {
+        el["toolPC"] = `+${el.currentChange.toFixed(2)}%`;
       } else {
-        el["toolPC"] = `${el.price_change_percentage_24h.toFixed(2)}%`;
+        el["toolPC"] = `${el.currentChange.toFixed(2)}%`;
       }
     });
 
@@ -89,37 +123,34 @@ function App() {
       currency: "USD",
     });
 
-    // Find max change for scaling
-    function max() {
+    function getMaxChange() {
       let maxChange = 0;
       data.forEach((coin) => {
-        if (Math.abs(coin.price_change_percentage_24h) > maxChange) {
-          maxChange = Math.abs(coin.price_change_percentage_24h);
+        if (Math.abs(coin.currentChange) > maxChange) {
+          maxChange = Math.abs(coin.currentChange);
         }
       });
-      return maxChange;
+      return Math.max(maxChange, 1);
     }
 
-    // Color scale - gradient based on percentage change
+    const maxChange = getMaxChange();
+
     const colorScale = d3
       .scaleLinear()
-      .domain([-max(), 0, max()])
+      .domain([-maxChange, 0, maxChange])
       .range(["#ff0000", "#808080", "#00ff00"])
       .clamp(true);
 
-    // Size scale
     const size = d3
       .scaleLinear()
-      .domain([0, (max() * 2.5) / 15, max()])
+      .domain([0, (maxChange * 2.5) / 15, maxChange])
       .range([15, 40, 60]);
 
-    // Y position for up/down coins
     const y = d3
       .scaleOrdinal()
       .domain(["up", "down", "zero"])
       .range([150, 350, 250]);
 
-    // Tooltip
     const tooltip = d3
       .select("body")
       .append("div")
@@ -141,16 +172,13 @@ function App() {
       const tooltipHeight = 200;
       const margin = 20;
 
-      // pozycja tooltipa
       let tooltipX = event.pageX + 20;
       let tooltipY = event.pageY - 30;
 
-      // czy wychodzi poza dolną krawędź
       if (tooltipY + tooltipHeight > window.innerHeight) {
         tooltipY = event.pageY - tooltipHeight - 20;
       }
 
-      // czy wychodzi poza górną krawędź
       if (tooltipY < margin) {
         tooltipY = margin;
       }
@@ -162,7 +190,7 @@ function App() {
             `Current Price: <strong>${formatter.format(
               d.current_price
             )}</strong><br/>` +
-            `24Hr Change: <strong>${d.toolPC}</strong><br/>` +
+            `${timeframes[timeframe].display} Change: <strong>${d.toolPC}</strong><br/>` +
             `High 24Hr: <strong>${formatter.format(
               d["high_24h"]
             )}</strong><br/>` +
@@ -175,14 +203,13 @@ function App() {
         )
         .style("left", tooltipX + "px")
         .style("top", tooltipY + "px")
-        .style("border-color", colorScale(d.price_change_percentage_24h));
+        .style("border-color", colorScale(d.currentChange));
     };
 
     const mouseleave = function (event, d) {
       tooltip.style("opacity", 0);
     };
 
-    // Create groups for bubbles
     const node = svg
       .append("g")
       .selectAll("g.bubble")
@@ -200,69 +227,55 @@ function App() {
           .on("end", dragended)
       );
 
-    // Add circles as backgrounds
     node
       .append("circle")
-      .attr("r", (d) => size(Math.abs(d.price_change_percentage_24h)))
-      .style("fill", (d) => colorScale(d.price_change_percentage_24h))
+      .attr("r", (d) => size(Math.abs(d.currentChange)))
+      .style("fill", (d) => colorScale(d.currentChange))
       .style("fill-opacity", 0.8)
-      .attr("stroke", (d) => colorScale(d.price_change_percentage_24h))
+      .attr("stroke", (d) => colorScale(d.currentChange))
       .style("stroke-width", 2);
 
-    // Add logos
     node
       .append("image")
       .attr("xlink:href", (d) => d.image)
-      .attr("x", (d) => -size(Math.abs(d.price_change_percentage_24h)) * 0.3)
-      .attr("y", (d) => -size(Math.abs(d.price_change_percentage_24h)) * 0.5)
-      .attr("width", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.6)
-      .attr(
-        "height",
-        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.6
-      )
+      .attr("x", (d) => -size(Math.abs(d.currentChange)) * 0.3)
+      .attr("y", (d) => -size(Math.abs(d.currentChange)) * 0.5)
+      .attr("width", (d) => size(Math.abs(d.currentChange)) * 0.6)
+      .attr("height", (d) => size(Math.abs(d.currentChange)) * 0.6)
       .style("pointer-events", "none");
 
-    // Add symbol text
     node
       .append("text")
       .attr("class", "symbol-text")
       .text((d) => d.symbol.toUpperCase())
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .attr("y", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.15)
-      .attr(
-        "font-size",
-        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.25
-      )
+      .attr("y", (d) => size(Math.abs(d.currentChange)) * 0.15)
+      .attr("font-size", (d) => size(Math.abs(d.currentChange)) * 0.25)
       .attr("fill", "white")
       .attr("font-weight", "bold")
       .style("pointer-events", "none");
 
-    // Add percentage change text
     node
       .append("text")
       .attr("class", "percentage-text")
       .text((d) => {
-        if (d.price_change_percentage_24h < 0) {
-          return `${d.price_change_percentage_24h.toFixed(1)}%`;
-        } else if (d.price_change_percentage_24h > 0) {
-          return `+${d.price_change_percentage_24h.toFixed(1)}%`;
+        if (d.currentChange < 0) {
+          return `${d.currentChange.toFixed(1)}%`;
+        } else if (d.currentChange > 0) {
+          return `+${d.currentChange.toFixed(1)}%`;
         } else {
           return "0%";
         }
       })
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .attr("y", (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.45)
-      .attr(
-        "font-size",
-        (d) => size(Math.abs(d.price_change_percentage_24h)) * 0.2
-      )
+      .attr("y", (d) => size(Math.abs(d.currentChange)) * 0.45)
+      .attr("font-size", (d) => size(Math.abs(d.currentChange)) * 0.2)
       .attr("fill", "white")
       .attr("font-weight", "normal")
       .style("pointer-events", "none");
 
-    // Simulation forces
     const simulation = d3
       .forceSimulation()
       .force(
@@ -292,18 +305,16 @@ function App() {
         d3
           .forceCollide()
           .strength(0.2)
-          .radius((d) => size(Math.abs(d.price_change_percentage_24h)) + 3)
+          .radius((d) => size(Math.abs(d.currentChange)) + 3)
           .iterations(5)
       );
 
-    // Tick function
     let ticked = () => {
       node.attr("transform", (d) => `translate(${d.x},${d.y})`);
     };
 
     simulation.nodes(data).on("tick", ticked);
 
-    // Drag functions
     function dragstarted(event, d) {
       if (!event.active) simulation.alphaTarget(0.03).restart();
       d.fx = d.x;
@@ -322,15 +333,35 @@ function App() {
     }
   };
 
+  const handleTimeframeChange = (newTimeframe) => {
+    if (newTimeframe === activeTimeframe || loading) return;
+
+    setLoading(true);
+    setActiveTimeframe(newTimeframe);
+
+    setTimeout(() => {
+      if (coins.length > 0) {
+        createBubbleChart(coins, newTimeframe);
+      }
+      setLoading(false);
+    }, 100);
+  };
+
   useEffect(() => {
+    setLoading(true);
     axios
       .get(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=24h",
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=1h%2C24h%2C7d%2C14d%2C30d%2C200d%2C1y",
         options
       )
       .then((res) => {
         setCoins(res.data);
-        createBubbleChart(res.data);
+        createBubbleChart(res.data, activeTimeframe);
+        setLoading(false);
+      })
+      .catch((error) => {
+        console.error("Error fetching data:", error);
+        setLoading(false);
       });
 
     return () => {
@@ -340,14 +371,14 @@ function App() {
 
   useEffect(() => {
     const handleResize = () => {
-      if (coins.length > 0) {
-        createBubbleChart(coins);
+      if (coins.length > 0 && !loading) {
+        createBubbleChart(coins, activeTimeframe);
       }
     };
 
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
-  }, [coins]);
+  }, [coins, activeTimeframe, loading]);
 
   return (
     <div className="app-container">
@@ -361,21 +392,21 @@ function App() {
               className="color-circle"
               style={{ backgroundColor: "#00ff00" }}
             ></div>
-            <span>Price Up (24h)</span>
+            <span>Price Up</span>
           </div>
           <div className="legend-item">
             <div
               className="color-circle"
               style={{ backgroundColor: "#808080" }}
             ></div>
-            <span>No Change (0%)</span>
+            <span>No Change</span>
           </div>
           <div className="legend-item">
             <div
               className="color-circle"
               style={{ backgroundColor: "#ff0000" }}
             ></div>
-            <span>Price Down (24h)</span>
+            <span>Price Down</span>
           </div>
         </div>
 
@@ -415,7 +446,26 @@ function App() {
         <svg ref={svgRef}></svg>
       </div>
 
-      <div className="right-panel">{/* Empty panel for balanced layout */}</div>
+      <div className="right-panel">
+        <h3>Timeframes</h3>
+        <div className="timeframe-controls">
+          {Object.entries(timeframes).map(([key, config]) => (
+            <button
+              key={key}
+              className={`timeframe-btn ${
+                activeTimeframe === key ? "active" : ""
+              }`}
+              onClick={() => handleTimeframeChange(key)}
+              disabled={loading}
+            >
+              {config.label}
+            </button>
+          ))}
+        </div>
+        {loading && (
+          <div className="loading-indicator">Updating visualization...</div>
+        )}
+      </div>
     </div>
   );
 }

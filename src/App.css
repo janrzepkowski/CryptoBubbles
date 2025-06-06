@@ -45,6 +45,77 @@ body {
   background: #1a1a1c;
   border-left: 1px solid #333;
   flex-shrink: 0;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.right-panel h3 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-top: 50px;
+  margin-bottom: 20px;
+  text-align: center;
+  color: #fff;
+}
+
+.timeframe-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.timeframe-btn {
+  background: #2a2a2c;
+  border: 1px solid #444;
+  color: #ccc;
+  padding: 12px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: "Montserrat", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  text-align: center;
+  outline: none;
+}
+
+.timeframe-btn:hover {
+  background: #333;
+  border-color: #555;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.timeframe-btn:active {
+  transform: translateY(0);
+}
+
+.timeframe-btn.active {
+  background: #007acc;
+  border-color: #0066aa;
+  color: white;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 122, 204, 0.3);
+}
+
+.timeframe-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.loading-indicator {
+  margin-top: 15px;
+  text-align: center;
+  color: #007acc;
+  font-size: 12px;
+  font-weight: 500;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }
 
 .legend h3 {
