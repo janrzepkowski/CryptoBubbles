@@ -21,7 +21,7 @@ function App() {
     d3.select(svgRef.current).selectAll("*").remove();
 
     const width = window.innerWidth;
-    const height = 500;
+    const height = window.innerHeight;
 
     const svg = d3
       .select(svgRef.current)
@@ -110,7 +110,7 @@ function App() {
     // Size scale
     const size = d3
       .scaleLinear()
-      .domain([0, (max() * 8) / 10, max()])
+      .domain([0, (max() * 2.5) / 15, max()])
       .range([15, 40, 60]);
 
     // Y position for up/down coins
