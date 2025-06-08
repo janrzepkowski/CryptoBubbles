@@ -7,7 +7,10 @@ function App() {
   const [coins, setCoins] = useState([]);
   const [activeTimeframe, setActiveTimeframe] = useState("24h");
   const [loading, setLoading] = useState(false);
+  const [refreshProgress, setRefreshProgress] = useState(0);
   const svgRef = useRef();
+  const refreshIntervalRef = useRef();
+  const progressIntervalRef = useRef();
 
   const api_key = import.meta.env.VITE_API_COINGECKO_KEY;
 
@@ -55,6 +58,44 @@ function App() {
       key: "price_change_percentage_1y_in_currency",
       display: "1y",
     },
+  };
+
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(
+        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=1h%2C24h%2C7d%2C14d%2C30d%2C200d%2C1y",
+        options
+      );
+      setCoins(response.data);
+      createBubbleChart(response.data, activeTimeframe);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startProgressBar = () => {
+    setRefreshProgress(0);
+    const duration = 60000; // 60 seconds
+    const interval = 100; // Update every 100ms
+    const increment = (interval / duration) * 100;
+
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+    }
+
+    progressIntervalRef.current = setInterval(() => {
+      setRefreshProgress((prev) => {
+        const newProgress = prev + increment;
+        if (newProgress >= 100) {
+          clearInterval(progressIntervalRef.current);
+          return 0;
+        }
+        return newProgress;
+      });
+    }, interval);
   };
 
   const createBubbleChart = (data, timeframe) => {
@@ -339,6 +380,8 @@ function App() {
     setLoading(true);
     setActiveTimeframe(newTimeframe);
 
+    startProgressBar();
+
     setTimeout(() => {
       if (coins.length > 0) {
         createBubbleChart(coins, newTimeframe);
@@ -348,26 +391,30 @@ function App() {
   };
 
   useEffect(() => {
-    setLoading(true);
-    axios
-      .get(
-        "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false&price_change_percentage=1h%2C24h%2C7d%2C14d%2C30d%2C200d%2C1y",
-        options
-      )
-      .then((res) => {
-        setCoins(res.data);
-        createBubbleChart(res.data, activeTimeframe);
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching data:", error);
-        setLoading(false);
-      });
+    fetchData();
+    startProgressBar();
+
+    refreshIntervalRef.current = setInterval(() => {
+      fetchData();
+      startProgressBar();
+    }, 60000);
 
     return () => {
+      if (refreshIntervalRef.current) {
+        clearInterval(refreshIntervalRef.current);
+      }
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+      }
       d3.select("body").selectAll(".tooltip").remove();
     };
   }, []);
+
+  useEffect(() => {
+    if (coins.length > 0) {
+      createBubbleChart(coins, activeTimeframe);
+    }
+  }, [coins]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -382,6 +429,13 @@ function App() {
 
   return (
     <div className="app-container">
+      <div className="refresh-progress-bar">
+        <div
+          className="refresh-progress-fill"
+          style={{ width: `${refreshProgress}%` }}
+        ></div>
+      </div>
+
       <div className="legend">
         <h3>Legend</h3>
 
@@ -421,6 +475,9 @@ function App() {
             </p>
             <p>
               <strong>Position:</strong> Auto-grouped by performance
+            </p>
+            <p>
+              <strong>Auto-refresh:</strong> every 60 s
             </p>
           </div>
         </div>
