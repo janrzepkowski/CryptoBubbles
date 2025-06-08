@@ -159,10 +159,41 @@ function App() {
       }
     });
 
-    const formatter = new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    });
+    const formatPrice = (price) => {
+      if (price >= 1) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(price);
+      } else if (price >= 0.01) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 4,
+          maximumFractionDigits: 4,
+        }).format(price);
+      } else if (price >= 0.0001) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          minimumFractionDigits: 6,
+          maximumFractionDigits: 6,
+        }).format(price);
+      } else {
+        if (price < 0.000001) {
+          return `$${price.toExponential(4)}`;
+        } else {
+          return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 8,
+            maximumFractionDigits: 8,
+          }).format(price);
+        }
+      }
+    };
 
     function getMaxChange() {
       let maxChange = 0;
@@ -228,16 +259,11 @@ function App() {
         .html(
           `Name: <strong>${d.name}</strong><br/>` +
             `Symbol: <strong>${d.symbol.toUpperCase()}</strong><br/>` +
-            `Current Price: <strong>${formatter.format(
+            `Current Price: <strong>${formatPrice(
               d.current_price
             )}</strong><br/>` +
-            `${timeframes[timeframe].display} Change: <strong>${d.toolPC}</strong><br/>` +
-            `High 24Hr: <strong>${formatter.format(
-              d["high_24h"]
-            )}</strong><br/>` +
-            `Low 24Hr: <strong>${formatter.format(
-              d["low_24h"]
-            )}</strong><br/>` +
+            `High 24Hr: <strong>${formatPrice(d["high_24h"])}</strong><br/>` +
+            `Low 24Hr: <strong>${formatPrice(d["low_24h"])}</strong><br/>` +
             `Rank: <strong>${d.market_cap_rank}</strong><br/>` +
             `Market Cap: <strong>${d.toolMC}</strong><br/>` +
             `24H Volume: <strong>${d.toolTV}</strong>`
